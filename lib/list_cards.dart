@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_html/flutter_html.dart';
 import 'package:news_app/colors.dart';
 import 'news_element.dart';
 
@@ -56,7 +55,7 @@ class CardsList extends StatelessWidget {
                             child: Text(
                               children[index].title,
                               maxLines: 1,
-                              overflow: TextOverflow.fade,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
@@ -68,14 +67,14 @@ class CardsList extends StatelessWidget {
                       )
                     ],
                   ),
-                  Container(
-                    height: MediaQuery.of(context).size.height * .12,
-                    padding: EdgeInsets.all(8),
-                    child: Text(
-                      children[index].subTitle,
-                      maxLines: 5,
-                      overflow: TextOverflow.fade,
-                      style: TextStyle(fontSize: 14),
+                  SingleChildScrollView(
+                    child: Container(
+                      padding: EdgeInsets.all(8),
+                      child: Text(
+                        children[index].subTitle,
+                        maxLines: 3,
+                        style: TextStyle(fontSize: 14),
+                      ),
                     ),
                   )
                 ],
@@ -113,13 +112,9 @@ class NewsDetails extends StatelessWidget {
             padding: const EdgeInsets.all(12.0),
             child: Text(
               news.subTitle,
-            style: TextStyle(
-              fontSize: 18
-            ),),
+              style: TextStyle(fontSize: 18),
+            ),
           ),
-          Html(
-            data: news.html,
-          )
         ],
       ),
     );

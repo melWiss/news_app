@@ -5,17 +5,17 @@ import 'package:http/http.dart' as http;
 
 class Api {
   String topstories =
-      'http://newsapi.org/v2/top-headlines?country=us&apiKey=f599cb8706914e578b866c0d0dc58a4f';
+      'https://news-app-wiss.herokuapp.com/getNews';
   Future<List<NewsElement>> getNews() async {
     List<NewsElement> list = [];
     var response = await jsonDecode((await http.get(topstories)).body);
-    for (int i = 0; i < response['articles'].length; i++) {
+    for (int i = 0; i < response.length; i++) {
       list.add(
         NewsElement(
-          title: response["articles"][i]['title'],
+          title: response[i]['title'],
           //html: response["articales"][i]['title'],
-          subTitle: response["articles"][i]['description'],
-          imageUrl: response["articles"][i]['urlToImage'],
+          subTitle: response[i]['description'],
+          imageUrl: response[i]['urlToImage'],
         ),
       );
     }
