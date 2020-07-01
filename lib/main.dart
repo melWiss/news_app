@@ -82,6 +82,9 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
+        actions: [
+          IconButton(icon: Icon(Icons.exit_to_app), onPressed: ()=>Navigator.of(context).pushNamed("/live"))
+        ],
       ),
       body: IndexedStack(
         index: bottomIndex,
