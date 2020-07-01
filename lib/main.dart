@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'colors.dart';
 import 'api.dart';
+import 'main_live.dart';
 import 'news_element.dart';
 import 'list_cards.dart';
 
@@ -13,6 +14,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'News App',
+      routes: {
+        "/live":(context)=>MyHomePageLive(title: 'News App',)
+      },
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
