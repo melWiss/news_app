@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+
 import 'news_element.dart';
 import 'package:http/http.dart' as http;
 
 class Api {
-  String topstories =
-      'https://news-app-wiss.herokuapp.com/getNews';
+  String topstories = (kIsWeb && kReleaseMode)? '../getNews':'https://news-app-wiss.herokuapp.com/getNews';
   Future<List<NewsElement>> getNews() async {
     List<NewsElement> list = [];
     var response = await jsonDecode((await http.get(topstories)).body);
