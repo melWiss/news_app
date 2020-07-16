@@ -14,7 +14,7 @@ class Api {
       list.add(
         NewsElement(
           title: response[i]['title'],
-          //html: response["articales"][i]['title'],
+          html: response[i]['url'],
           subTitle: response[i]['description'],
           imageUrl: response[i]['urlToImage'],
         ),
