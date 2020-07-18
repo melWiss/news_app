@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:idb_shim/idb_browser.dart';
+//import 'package:universal_html/html.dart';
+import 'dart:html';
+import 'package:idb_shim/idb_shim.dart';
 import 'colors.dart';
 import 'api.dart';
+import 'db.dart';
 import 'main_live.dart';
 import 'news_element.dart';
 import 'list_cards.dart';
@@ -55,18 +60,11 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
   int bottomIndex = 0;
   Api api;
   List<NewsElement> listNews;
   Widget listElement;
   Widget body;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
 
   @override
   void initState() {
@@ -82,6 +80,10 @@ class _MyHomePageState extends State<MyHomePage> {
         style: TextStyle(fontSize: 18),
       ),
     );
+    getNews();
+  }
+
+  void getNews() {
     api.getNews().then((value) {
       setState(() {
         listNews = value;
@@ -93,29 +95,61 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     var widthRail = MediaQuery.of(context).size.width * .15 + 16;
     if (listNews != null) {
-      if (MediaQuery.of(context).orientation == Orientation.landscape)
-        listElement = CardsListLandscape(
+      if (listNews.length == 0) {
+        listElement = Center(
+          child: Text("Save News from the News tab"),
+        );
+      } else if (MediaQuery.of(context).orientation == Orientation.landscape)
+        listElement = CardsList(
           children: listNews,
           onTap: (int index) {
             setState(() {
               body = NewsDetails(
                 news: listNews[index],
+                snackBarWidth: MediaQuery.of(context).size.width * .5,
+                save: () async =>
+                    putData(listNews[index].toMap(), listNews[index].html),
+                onExist: () =>
+                    deleteData(listNews[index].html).whenComplete(() async {
+                  setState(() {
+                    print("Deleted ${listNews[index].title}");
+                  });
+                }),
               );
             });
           },
         );
       else
-        listElement = CardsListPortrait(children: listNews);
+        listElement = CardsList(
+          children: listNews,
+          onTap: (int index) {
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (context) => NewsDetails(
+                news: listNews[index],
+                snackBarWidth: MediaQuery.of(context).size.width * .5,
+                save: () async =>
+                    putData(listNews[index].toMap(), listNews[index].html),
+                onExist: () =>
+                    deleteData(listNews[index].html).whenComplete(() async {
+                  setState(() {
+                    print("Deleted ${listNews[index].title}");
+                  });
+                }),
+              ),
+            ));
+          },
+        );
+    } else {
+      listElement = Center(child: CircularProgressIndicator());
     }
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
-        /*actions: [
-          IconButton(
-              icon: Icon(Icons.exit_to_app),
-              onPressed: () => Navigator.of(context).pushNamed("/live"))
-        ],*/
-        leading: Icon(Icons.account_balance,color: NewsColors.primary,),
+        elevation: 1.5,
+        leading: Icon(
+          Icons.account_balance,
+          color: NewsColors.primary,
+        ),
       ),
       backgroundColor: Colors.white,
       body: LayoutBuilder(
@@ -126,58 +160,72 @@ class _MyHomePageState extends State<MyHomePage> {
               height: MediaQuery.of(context).size.height,
               child: Row(
                 children: [
-                  SizedBox(
-                    width: MediaQuery.of(context).size.width * .15,
-                    child: Material(
-                      borderRadius: BorderRadius.only(
-                        topRight: Radius.circular(20),
-                        bottomRight: Radius.circular(20),
-                      ),
-                      color: Colors.white,
-                      clipBehavior: Clip.hardEdge,
-                      elevation: 5,
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: NavigationRail(
-                          destinations: <NavigationRailDestination>[
-                            NavigationRailDestination(
-                              icon: Icon(
-                                Icons.assignment,
-                              ),
-                              label: Text('News'),
-                            ),
-                            NavigationRailDestination(
-                              icon: Icon(
-                                Icons.save,
-                              ),
-                              label: Text('Saved'),
-                            ),
-                          ],
-                          selectedIndex: bottomIndex,
-                          extended: widthRail >= 152.2 ? true : false,
-                          leading: floatingActionButton(
-                              extended: widthRail >= 152.2),
-                          minExtendedWidth: 152.2,
-                          labelType: widthRail < 152.2
-                              ? NavigationRailLabelType.selected
-                              : NavigationRailLabelType.none,
-                          onDestinationSelected: (index) {
-                            setState(() {
-                              bottomIndex = index;
-                            });
-                          },
+                  Expanded(
+                    flex: 1,
+                    child: NavigationRail(
+                      elevation: 3,
+                      selectedIndex: bottomIndex,
+                      extended: widthRail >= 152.2 ? true : false,
+                      labelType: widthRail < 152.2
+                          ? NavigationRailLabelType.selected
+                          : NavigationRailLabelType.none,
+                      onDestinationSelected: (index) async {
+                        setState(() {
+                          bottomIndex = index;
+                          listNews = null;
+                        });
+                        switch (index) {
+                          case 0:
+                            getNews();
+                            break;
+                          case 1:
+                            {
+                              var localNews = await getData();
+                              setState(() {
+                                listNews = List.generate(
+                                  localNews.length,
+                                  (index) {
+                                    return NewsElement.fromMap(
+                                        localNews[index]);
+                                  },
+                                );
+                              });
+                            }
+                            break;
+                          default:
+                        }
+                      },
+                      leading: Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: floatingActionButton(
+                          extended: widthRail >= 152.2,
                         ),
                       ),
+                      destinations: <NavigationRailDestination>[
+                        NavigationRailDestination(
+                          icon: Icon(
+                            Icons.assignment,
+                          ),
+                          label: Text('News'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(
+                            Icons.save,
+                          ),
+                          label: Text('Saved'),
+                        ),
+                      ],
                     ),
                   ),
-                  SizedBox(
-                    width: MediaQuery.of(context).size.width * .3,
+                  Expanded(
+                    flex: 2,
                     child: listElement,
                   ),
                   Expanded(
+                    flex: 3,
                     child: Container(
                       color: Colors.white,
-                      padding: EdgeInsets.all(8),
+                      padding: EdgeInsets.only(top: 8, left: 8, right: 8),
                       child: body,
                     ),
                   )
@@ -187,7 +235,7 @@ class _MyHomePageState extends State<MyHomePage> {
           }
           //portrait
           else {
-            return bodyStack(context);
+            return listElement;
           }
         },
       ),
@@ -199,10 +247,30 @@ class _MyHomePageState extends State<MyHomePage> {
           MediaQuery.of(context).orientation == Orientation.portrait
               ? BottomNavigationBar(
                   currentIndex: bottomIndex,
-                  onTap: (index) {
+                  onTap: (index) async {
                     setState(() {
                       bottomIndex = index;
+                      listNews = null;
                     });
+                    switch (index) {
+                      case 0:
+                        getNews();
+                        break;
+                      case 1:
+                        {
+                          var localNews = await getData();
+                          setState(() {
+                            listNews = List.generate(
+                              localNews.length,
+                              (index) {
+                                return NewsElement.fromMap(localNews[index]);
+                              },
+                            );
+                          });
+                        }
+                        break;
+                      default:
+                    }
                   },
                   items: <BottomNavigationBarItem>[
                     BottomNavigationBarItem(
@@ -227,13 +295,13 @@ class _MyHomePageState extends State<MyHomePage> {
     if (extended) {
       return FloatingActionButton.extended(
         label: Text("Add Field"),
-        onPressed: _incrementCounter,
+        onPressed: () async {},
         tooltip: 'Add Field',
         icon: Icon(Icons.add),
       );
     }
     return FloatingActionButton(
-      onPressed: _incrementCounter,
+      onPressed: () async {},
       tooltip: 'Add Field',
       child: Icon(Icons.add),
     );

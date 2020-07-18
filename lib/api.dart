@@ -6,7 +6,7 @@ import 'news_element.dart';
 import 'package:http/http.dart' as http;
 
 class Api {
-  String topstories = (kIsWeb && kReleaseMode)? '../getNews':'https://news-app-wiss.herokuapp.com/getNews';
+  String topstories = (kIsWeb && kReleaseMode)? '../getNews':/*'https://news-app-wiss.herokuapp.com/getNews'*/'http://localhost:8080/getNews';
   Future<List<NewsElement>> getNews() async {
     List<NewsElement> list = [];
     var response = await jsonDecode((await http.get(topstories)).body);
