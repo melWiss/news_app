@@ -143,19 +143,13 @@ class NewsDetails extends StatelessWidget {
                   if (await save()) {
                     Scaffold.of(context).showSnackBar(SnackBar(
                       content: Text('Saved to read later'),
-                      width: MediaQuery.of(context).orientation ==
-                              Orientation.landscape
-                          ? snackBarWidth
-                          : MediaQuery.of(context).size.width,
+                      width: snackBarWidth,
                       behavior: SnackBarBehavior.floating,
                     ));
                   } else {
                     Scaffold.of(context).showSnackBar(SnackBar(
                       content: Text('Already saved'),
-                      width: MediaQuery.of(context).orientation ==
-                              Orientation.landscape
-                          ? snackBarWidth
-                          : MediaQuery.of(context).size.width,
+                      width: snackBarWidth,
                       behavior: SnackBarBehavior.floating,
                       action: onExist != null
                           ? SnackBarAction(

@@ -1,10 +1,16 @@
-import 'package:idb_shim/idb_browser.dart';
-import 'package:idb_shim/idb_shim.dart';
+//import 'package:idb_shim/idb_browser.dart';
+//import 'package:idb_shim/idb_shim.dart';
+import 'dart:io';
 
+import 'package:idb_sqflite/idb_sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite/sqflite.dart' as sqflite;
+
+  //IdbFactory idbFactory = getIdbFactory();
+  IdbFactory idbFactory = Platform.isLinux? getIdbFactorySqflite(databaseFactoryFfi): getIdbFactorySqflite(sqflite.databaseFactory);
 Future<bool> putData(Map value, String id,
     {String keyword = 'savedNews'}) async {
   bool success = false;
-  IdbFactory idbFactory = getIdbFactory();
   Database db = await idbFactory.open('news', version: 1,
       onUpgradeNeeded: (VersionChangeEvent event) {
     print(event.newVersion);
@@ -27,7 +33,6 @@ Future<bool> putData(Map value, String id,
 
 Future<List<Map>> getData({String keyword = 'savedNews'}) async {
   List<Map> data = [];
-  IdbFactory idbFactory = getIdbFactory();
   Database db = await idbFactory.open('news', version: 1,
       onUpgradeNeeded: (VersionChangeEvent event) {
     print(event.newVersion);
@@ -52,7 +57,6 @@ Future<List<Map>> getData({String keyword = 'savedNews'}) async {
 }
 
 Future deleteData(String id, {String keyword = 'savedNews'}) async {
-  IdbFactory idbFactory = getIdbFactory();
   Database db = await idbFactory.open('news', version: 1,
       onUpgradeNeeded: (VersionChangeEvent event) {
     print(event.newVersion);

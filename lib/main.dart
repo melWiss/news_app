@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:idb_shim/idb_browser.dart';
-//import 'package:universal_html/html.dart';
-import 'dart:html';
-import 'package:idb_shim/idb_shim.dart';
+import 'package:get_it/get_it.dart';
+import 'articles_rx.dart';
 import 'colors.dart';
 import 'api.dart';
 import 'db.dart';
-import 'main_live.dart';
-import 'news_element.dart';
 import 'list_cards.dart';
 
+GetIt getIt = GetIt.asNewInstance();
 void main() {
+  getIt.registerSingleton<ListArticles>(ListArticles());
   runApp(MyApp());
 }
 
@@ -19,11 +17,6 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'News App',
-      routes: {
-        "/live": (context) => MyHomePageLive(
-              title: 'News App',
-            )
-      },
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -62,86 +55,20 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int bottomIndex = 0;
   Api api;
-  List<NewsElement> listNews;
-  Widget listElement;
-  Widget body;
+  ListArticles _listArticles = getIt.get<ListArticles>();
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-    listElement = Center(
-      child: CircularProgressIndicator(),
-    );
-    api = Api();
-    body = Center(
-      child: Text(
-        'Tap on an article from the left',
-        style: TextStyle(fontSize: 18),
-      ),
-    );
-    getNews();
-  }
-
-  void getNews() {
-    api.getNews().then((value) {
-      setState(() {
-        listNews = value;
-      });
+    _listArticles.apiArticles().whenComplete(() {
+      _listArticles.articlesProviderSelector(0);
     });
+    _listArticles.localArticles();
   }
 
   @override
   Widget build(BuildContext context) {
-    var widthRail = MediaQuery.of(context).size.width * .15 + 16;
-    if (listNews != null) {
-      if (listNews.length == 0) {
-        listElement = Center(
-          child: Text("Save News from the News tab"),
-        );
-      } else if (MediaQuery.of(context).orientation == Orientation.landscape)
-        listElement = CardsList(
-          children: listNews,
-          onTap: (int index) {
-            setState(() {
-              body = NewsDetails(
-                news: listNews[index],
-                snackBarWidth: MediaQuery.of(context).size.width * .5,
-                save: () async =>
-                    putData(listNews[index].toMap(), listNews[index].html),
-                onExist: () =>
-                    deleteData(listNews[index].html).whenComplete(() async {
-                  setState(() {
-                    print("Deleted ${listNews[index].title}");
-                  });
-                }),
-              );
-            });
-          },
-        );
-      else
-        listElement = CardsList(
-          children: listNews,
-          onTap: (int index) {
-            Navigator.of(context).push(MaterialPageRoute(
-              builder: (context) => NewsDetails(
-                news: listNews[index],
-                snackBarWidth: MediaQuery.of(context).size.width * .5,
-                save: () async =>
-                    putData(listNews[index].toMap(), listNews[index].html),
-                onExist: () =>
-                    deleteData(listNews[index].html).whenComplete(() async {
-                  setState(() {
-                    print("Deleted ${listNews[index].title}");
-                  });
-                }),
-              ),
-            ));
-          },
-        );
-    } else {
-      listElement = Center(child: CircularProgressIndicator());
-    }
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -156,6 +83,7 @@ class _MyHomePageState extends State<MyHomePage> {
         builder: (context, constraints) {
           //landscape
           if (MediaQuery.of(context).orientation == Orientation.landscape) {
+            var widthRail = MediaQuery.of(context).size.width * .15 + 16;
             return SizedBox(
               height: MediaQuery.of(context).size.height,
               child: Row(
@@ -172,28 +100,8 @@ class _MyHomePageState extends State<MyHomePage> {
                       onDestinationSelected: (index) async {
                         setState(() {
                           bottomIndex = index;
-                          listNews = null;
                         });
-                        switch (index) {
-                          case 0:
-                            getNews();
-                            break;
-                          case 1:
-                            {
-                              var localNews = await getData();
-                              setState(() {
-                                listNews = List.generate(
-                                  localNews.length,
-                                  (index) {
-                                    return NewsElement.fromMap(
-                                        localNews[index]);
-                                  },
-                                );
-                              });
-                            }
-                            break;
-                          default:
-                        }
+                        _listArticles.articlesProviderSelector(index);
                       },
                       leading: Padding(
                         padding: EdgeInsets.all(8.0),
@@ -219,14 +127,66 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   Expanded(
                     flex: 2,
-                    child: listElement,
+                    child: ListArticlesWidget(
+                      listArticles: _listArticles,
+                      bottomIndex: bottomIndex,
+                    ),
                   ),
                   Expanded(
                     flex: 3,
                     child: Container(
                       color: Colors.white,
                       padding: EdgeInsets.only(top: 8, left: 8, right: 8),
-                      child: body,
+                      child: StreamBuilder(
+                        stream: _listArticles.indexStream$,
+                        initialData: -1,
+                        builder: (context, snap) {
+                          switch (snap.connectionState) {
+                            case ConnectionState.active:
+                              print(_listArticles.currentIndex);
+                              if (_listArticles.current.length >
+                                      _listArticles.currentIndex &&
+                                  _listArticles.currentIndex > -1)
+                                return NewsDetails(
+                                  news: _listArticles
+                                      .current[_listArticles.currentIndex],
+                                  onExist: () => deleteData(_listArticles
+                                          .current[_listArticles.currentIndex]
+                                          .html)
+                                      .whenComplete(() async {
+                                    await _listArticles
+                                        .articlesProviderSelector(bottomIndex);
+                                  }),
+                                  save: () {
+                                    return putData(
+                                      _listArticles
+                                          .current[_listArticles.currentIndex]
+                                          .toMap(),
+                                      _listArticles
+                                          .current[_listArticles.currentIndex]
+                                          .html,
+                                    );
+                                  },
+                                  snackBarWidth:
+                                      MediaQuery.of(context).size.width * .5,
+                                );
+                              return Center(
+                                child: Text(
+                                  'Tap on an article from the left',
+                                  style: TextStyle(fontSize: 18),
+                                ),
+                              );
+                              break;
+                            default:
+                              return Center(
+                                child: Text(
+                                  'Tap on an article from the left',
+                                  style: TextStyle(fontSize: 18),
+                                ),
+                              );
+                          }
+                        },
+                      ),
                     ),
                   )
                 ],
@@ -235,7 +195,10 @@ class _MyHomePageState extends State<MyHomePage> {
           }
           //portrait
           else {
-            return listElement;
+            return ListArticlesWidget(
+              listArticles: _listArticles,
+              bottomIndex: bottomIndex,
+            );
           }
         },
       ),
@@ -250,27 +213,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   onTap: (index) async {
                     setState(() {
                       bottomIndex = index;
-                      listNews = null;
                     });
-                    switch (index) {
-                      case 0:
-                        getNews();
-                        break;
-                      case 1:
-                        {
-                          var localNews = await getData();
-                          setState(() {
-                            listNews = List.generate(
-                              localNews.length,
-                              (index) {
-                                return NewsElement.fromMap(localNews[index]);
-                              },
-                            );
-                          });
-                        }
-                        break;
-                      default:
-                    }
+                    _listArticles.articlesProviderSelector(index);
                   },
                   items: <BottomNavigationBarItem>[
                     BottomNavigationBarItem(
@@ -306,18 +250,86 @@ class _MyHomePageState extends State<MyHomePage> {
       child: Icon(Icons.add),
     );
   }
+}
 
-  IndexedStack bodyStack(BuildContext context) {
-    return IndexedStack(
-      index: bottomIndex,
-      children: [
-        listElement,
-        Container(
-          height: MediaQuery.of(context).size.height,
-          width: MediaQuery.of(context).size.width,
-          color: Colors.blueAccent,
-        ),
-      ],
+class ListArticlesWidget extends StatelessWidget {
+  const ListArticlesWidget({
+    Key key,
+    this.bottomIndex = 0,
+    @required ListArticles listArticles,
+  })  : _listArticles = listArticles,
+        super(key: key);
+
+  final ListArticles _listArticles;
+  final int bottomIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder(
+      stream: _listArticles.stream$,
+      builder: (context, snap) {
+        switch (snap.connectionState) {
+          case ConnectionState.active:
+            print('active');
+            if (_listArticles.current.length > 0)
+              return CardsList(
+                children: _listArticles.current,
+                onTap: (int index) async {
+                  if (MediaQuery.of(context).orientation ==
+                      Orientation.landscape) {
+                    if (bottomIndex == 0)
+                      _listArticles.apiNewsIndex(index);
+                    else
+                      _listArticles.localNewsIndex(index);
+                    await _listArticles.articlesProviderSelector(bottomIndex);
+                  } else {
+                    if (bottomIndex == 0)
+                      _listArticles.apiNewsIndex(index);
+                    else
+                      _listArticles.localNewsIndex(index);
+                    await _listArticles.articlesProviderSelector(bottomIndex);
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => NewsDetails(
+                          news:
+                              _listArticles.current[_listArticles.currentIndex],
+                          save: () {
+                            return putData(
+                              _listArticles.current[_listArticles.currentIndex]
+                                  .toMap(),
+                              _listArticles
+                                  .current[_listArticles.currentIndex].html,
+                            );
+                          },
+                          onExist: () => deleteData(_listArticles
+                                  .current[_listArticles.currentIndex].html)
+                              .whenComplete(() async {
+                            await _listArticles
+                                .articlesProviderSelector(bottomIndex);
+                            Navigator.of(context).pop();
+                          }),
+                          snackBarWidth:
+                              MediaQuery.of(context).size.width * .97,
+                        ),
+                      ),
+                    );
+                  }
+                },
+              );
+            return Center(
+                child: Text(
+              bottomIndex == 1
+                  ? "Save some articles from the News Tab"
+                  : "Check Internet Connectivity",
+              textAlign: TextAlign.center,
+            ));
+            break;
+          default:
+            return Center(
+              child: CircularProgressIndicator(),
+            );
+        }
+      },
     );
   }
 }
